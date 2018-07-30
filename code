@@ -1,5 +1,4 @@
-
-# Intro
+#Intro
 
 This is a Python notebook documenting how to download public tweet data about sustainable development goals (search term) in an automated loop with Python.  The search term can be changed by adjusting the parameter provided to the variable 'public_tweets'. After downloading and importing data to a MongoDB local instance, the code performs a quick polarity analysis (sentiment analysis). 
 
@@ -17,7 +16,7 @@ from pymongo import MongoClient
 import pandas
 ```
 
-## Setting access to twitter API
+##Setting access to twitter API
 
 
 The next step is to set the parameters of the Twitter API after we have created it at: https://apps.twitter.com/
@@ -37,7 +36,7 @@ auth.set_access_token(access_token, access_token_secret)
 api = tweepy.API(auth)
 ```
 
-## Searching for tweets
+##Searching for tweets
 
 
 ```python
@@ -85,7 +84,7 @@ for tweet in public_tweets:
     Sentiment(polarity=0.0, subjectivity=1.0)
 
 
-## Creating loop to overcome Twitter search limits
+##Creating loop to overcome Twitter search limits
 
 In order to overcome the limit of queries the following code was used. The code also saves the search results to a MongoDB local database `twitter_db` (collection: `sdg_tweets`). You will need to install mongodb server in case you do not have it in your machine (see: https://www.mongodb.com/download-center#community) or use another database.
 
@@ -112,7 +111,7 @@ while True:
 ```
 
 
-# Checking data saved in MongoDB local database
+#Checking data saved in MongoDB local database
 
 The output below presents the number of tweets saved to the MongoDB database. 
 

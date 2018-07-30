@@ -1,0 +1,243 @@
+
+# Intro
+
+This is a Python notebook documenting how to download public tweet data about sustainable development goals (search term) in an automated loop with Python.  The search term can be changed by adjusting the parameter provided to the variable 'public_tweets'. After downloading and importing data to a MongoDB local instance, the code performs a quick polarity analysis (sentiment analysis). 
+
+The first step is to load (import) the required packages as shown below.
+
+
+```python
+# Import packages
+import tweepy # for reading tweets
+
+from textblob import TextBlob # for doing sentiment analysis
+
+from pymongo import MongoClient
+
+import pandas
+```
+
+## Setting access to twitter API
+
+
+The next step is to set the parameters of the Twitter API after we have created it at: https://apps.twitter.com/
+
+
+```python
+# Accessing tweeter (see https://apps.twitter.com/ for your parameters)
+consumer_key =  "YOUR CONSUMER KEY"
+consumer_secret = "YOUR CONSUMER SECRET"
+
+access_token = "YOUR TOKEN"
+access_token_secret = "YOUR TOKEN SECRET"
+
+auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+auth.set_access_token(access_token, access_token_secret)
+
+api = tweepy.API(auth)
+```
+
+## Searching for tweets
+
+
+```python
+public_tweets = api.search('sustainable development goals')
+
+for tweet in public_tweets:  
+    print(tweet.text)
+    analysis = TextBlob(tweet.text)
+    print(analysis.sentiment)
+```
+
+    @SaveAustralia1 @real_pat_henry @tomwoods55 @Cinebar2O @GrahamClune @kmoss50 @MurrayHicksind4 @kelliekelly23… https://t.co/6BQ2rbrzG6
+    Sentiment(polarity=0.0, subjectivity=0.0)
+    RT @CAUKI: “Digital transformation is the biggest challenge and opportunity facing organisations today.” @Comms_Sarah explores how business…
+    Sentiment(polarity=0.0, subjectivity=0.0)
+    The BoF Podcast: How the Jewellery Industry Can Uphold Human Rights and Be More Sustainable: Cherie Blair, the UN’s… https://t.co/r4axH6XJkX
+    Sentiment(polarity=0.25, subjectivity=0.3)
+    RT @CAUKI: “Digital transformation is the biggest challenge and opportunity facing organisations today.” @Comms_Sarah explores how business…
+    Sentiment(polarity=0.0, subjectivity=0.0)
+    RT @UN_Water: Fashion is an environmental and social emergency, but can also drive progress towards the #SDG's
+    
+    @UNECE &amp; @UNFAO work w/ par…
+    Sentiment(polarity=0.03333333333333333, subjectivity=0.06666666666666667)
+    RT @WHOAFRO: Ending the #TB epidemic by 2030 is among the health targets of the Sustainable Development Goals #SDGs. 
+    Wanted! Leaders for a…
+    Sentiment(polarity=0.0, subjectivity=0.0)
+    RT @IGBConline: @WorldGBC explains how green homes can provide the building blocks towards meeting several Sustainable Development Goals. @…
+    Sentiment(polarity=-0.1, subjectivity=0.15)
+    RT @MartenRobert: Congratulations to @GlobalFund and @PeterASands for suspending the partnership with Heineken. This is outstanding news fo…
+    Sentiment(polarity=0.5, subjectivity=0.875)
+    RT @giofonsecaf: The Sustainable Development Goals: SDGs! https://t.co/tZTpRteR7H Thanks to @LeonMolina @OECD_BizFin @SoCapNepal #globalgoa…
+    Sentiment(polarity=0.2, subjectivity=0.2)
+    RT @CAUKI: “Digital transformation is the biggest challenge and opportunity facing organisations today.” @Comms_Sarah explores how business…
+    Sentiment(polarity=0.0, subjectivity=0.0)
+    RT @AdamRogers2030: BRAVO BRISTOL!!
+    The Mayor of the City of #Bristol, #UnitedKingdom appointed for the first time an "Ambassador for the S…
+    Sentiment(polarity=0.25, subjectivity=0.3333333333333333)
+    RT @nature_org: Tropical forest countries are especially vulnerable to the effects of climate change. Are sustainable land bonds the key to…
+    Sentiment(polarity=-0.5, subjectivity=1.0)
+    The Sustainable Development Goals: SDGs! https://t.co/tZTpRteR7H Thanks to @LeonMolina @OECD_BizFin @SoCapNepal #globalgoals
+    Sentiment(polarity=0.2, subjectivity=0.2)
+    Sustainable Development Goals and @IAHR commitees https://t.co/AoQo8kWiuj
+    Sentiment(polarity=0.0, subjectivity=0.0)
+    The @UN’s #SDGs drive the vision for all of the programs we implement, especially #SDG9 - which focuses on industry… https://t.co/AeOx972zyN
+    Sentiment(polarity=0.0, subjectivity=1.0)
+
+
+## Creating loop to overcome Twitter search limits
+
+In order to overcome the limit of queries the following code was used. The code also saves the search results to a MongoDB local database `twitter_db` (collection: `sdg_tweets`). You will need to install mongodb server in case you do not have it in your machine (see: https://www.mongodb.com/download-center#community) or use another database.
+
+
+```python
+c = tweepy.Cursor(api.search, 
+                  q = "sustainable development goals",
+                 include_entitites = True).items()
+
+while True:
+    try:
+        tweet = c.next()
+        
+        # Insert into DB
+        client = MongoClient('localhost', 27017)
+        db = client['twitter_db']
+        collection = db['sdg_tweets']
+        collection.insert_one(tweet._json)
+    except tweepy.TweepError:
+        time.sleep(60 * 15)
+        continue
+    except StopIteration:
+        break
+```
+
+
+# Checking data saved in MongoDB local database
+
+The output below presents the number of tweets saved to the MongoDB database. 
+
+
+```python
+# Connecting to MongoDB
+    
+client = MongoClient('localhost', 27017)
+db = client['twitter_db']
+collection = db['sdg_tweets']
+
+```
+
+
+```python
+# Prints number of tweets
+collection.count({})
+```
+
+    5306
+
+
+
+
+```python
+# Prints first tweet for inspection
+collection.find_one({})
+```
+
+    {'_id': ObjectId('5aa5b02a6dc93b1334f833de'),
+     'contributors': None,
+     'coordinates': None,
+     'created_at': 'Sun Mar 11 21:58:11 +0000 2018',
+     'entities': {'hashtags': [{'indices': [66, 74], 'text': 'msftedu'}],
+      'symbols': [],
+      'urls': [{'display_url': 'education.microsoft.com/courses-and-re…',
+        'expanded_url': 'https://education.microsoft.com/courses-and-resources/courses/SDG',
+        'indices': [76, 99],
+        'url': 'https://t.co/JmceirBV6y'}],
+      'user_mentions': [{'id': 17826187,
+        'id_str': '17826187',
+        'indices': [104, 117],
+        'name': 'Microsoft Education',
+        'screen_name': 'MicrosoftEDU'}]},
+     'favorite_count': 0,
+     'favorited': False,
+     'geo': None,
+     'id': 972954864647946240,
+     'id_str': '972954864647946240',
+     'in_reply_to_screen_name': None,
+     'in_reply_to_status_id': None,
+     'in_reply_to_status_id_str': None,
+     'in_reply_to_user_id': None,
+     'in_reply_to_user_id_str': None,
+     'is_quote_status': False,
+     'lang': 'en',
+     'metadata': {'iso_language_code': 'en', 'result_type': 'recent'},
+     'place': None,
+     'possibly_sensitive': False,
+     'retweet_count': 0,
+     'retweeted': False,
+     'source': '<a href="http://twitter.com" rel="nofollow">Twitter Web Client</a>',
+     'text': 'Just completed the Teaching Sustainable Development Goals course! #msftedu\n https://t.co/JmceirBV6y via @MicrosoftEDU',
+     'truncated': False,
+     'user': {'contributors_enabled': False,
+      'created_at': 'Fri Sep 23 19:06:43 +0000 2011',
+      'default_profile': False,
+      'default_profile_image': False,
+      'description': 'Security Is nothing! #InfoSec #WhiteHat',
+      'entities': {'description': {'urls': []},
+       'url': {'urls': [{'display_url': 'maruf.me',
+          'expanded_url': 'http://maruf.me',
+          'indices': [0, 23],
+          'url': 'https://t.co/DWSG30LnPi'}]}},
+      'favourites_count': 43,
+      'follow_request_sent': False,
+      'followers_count': 227,
+      'following': False,
+      'friends_count': 906,
+      'geo_enabled': True,
+      'has_extended_profile': True,
+      'id': 378752042,
+      'id_str': '378752042',
+      'is_translation_enabled': False,
+      'is_translator': False,
+      'lang': 'en',
+      'listed_count': 7,
+      'location': 'Everwhere',
+      'name': 'Maruf Alam',
+      'notifications': False,
+      'profile_background_color': 'FFFFFF',
+      'profile_background_image_url': 'http://pbs.twimg.com/profile_background_images/450994443001151488/W9BnN3Uh.jpeg',
+      'profile_background_image_url_https': 'https://pbs.twimg.com/profile_background_images/450994443001151488/W9BnN3Uh.jpeg',
+      'profile_background_tile': False,
+      'profile_banner_url': 'https://pbs.twimg.com/profile_banners/378752042/1416295681',
+      'profile_image_url': 'http://pbs.twimg.com/profile_images/419412562459897857/HGGUKtVb_normal.jpeg',
+      'profile_image_url_https': 'https://pbs.twimg.com/profile_images/419412562459897857/HGGUKtVb_normal.jpeg',
+      'profile_link_color': '404040',
+      'profile_sidebar_border_color': 'FFFFFF',
+      'profile_sidebar_fill_color': '000000',
+      'profile_text_color': '999999',
+      'profile_use_background_image': True,
+      'protected': False,
+      'screen_name': 'NothingSecurity',
+      'statuses_count': 486,
+      'time_zone': 'Dhaka',
+      'translator_type': 'none',
+      'url': 'https://t.co/DWSG30LnPi',
+      'utc_offset': 21600,
+      'verified': False}}
+
+
+
+
+```python
+import pandas as pd
+
+# Querying data from MongoDB local instance
+public_tweets = collection.find({})
+
+# Expand the cursor and construct the DataFrame
+df =  pd.DataFrame(list(public_tweets))
+```
+
+
+
+
+  
